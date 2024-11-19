@@ -1,0 +1,584 @@
+============== File Add.php
+<?php
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $file = 'tasks.json';
+    $data = file_exists($file) ? json_decode(file_get_contents($file), true) : [];
+
+    $newTask = [
+        'title' => $_POST['title'],
+        'description' => $_POST['description'],
+        'category' => $_POST['category'],
+        'deadline' => $_POST['deadline'] ?? '',
+        'priority' => $_POST['priority'],
+        'status' => 'pending',
+    ];
+
+    $data[] = $newTask;
+    file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT));
+
+    header('Location: index.php');
+    exit;
+}
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Task</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="index.php">View Tasks</a></li>
+            <li><a href="add.php">Add Task</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <h1>Add New Task</h1>
+        <form method="POST">
+            <label for="title">Title:</label>
+            <input type="text" name="title" id="title" placeholder="Enter task title" required>
+
+            <label for="description">Description:</label>
+            <textarea name="description" id="description" placeholder="Enter task description" required></textarea>
+
+            <label for="category">Category:</label>
+            <select name="category" id="category" required>
+                <option value="">Select a category</option>
+                <option value="IT">IT</option>
+                <option value="financial">Financial</option>
+                <option value="family">Family</option>
+                <option value="future">Future Plan</option>
+                <option value="laws">Laws</option>
+            </select>
+
+            <label for="deadline">Deadline: <span class="optional">(Optional)</span></label>
+            <input type="date" name="deadline" id="deadline">
+
+            <label for="priority">Priority:</label>
+            <select name="priority" id="priority" required>
+                <option value="normal" selected>Normal</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+            </select>
+
+            <button type="submit">Add Task</button>
+        </form>
+    </div>
+</body>
+</html>
+
+
+
+
+============== File index.php
+<?php
+// Load tasks from the JSON file
+$file = 'tasks.json';
+if (file_exists($file)) {
+    $data = json_decode(file_get_contents($file), true);
+} else {
+    $data = [];
+}
+
+// Handle button actions
+if (isset($_GET['complete'])) {
+    $taskIndex = (int)$_GET['complete'];
+    if (isset($data[$taskIndex])) {
+        $data[$taskIndex]['status'] = 'completed';
+        file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT));
+    }
+    header('Location: index.php');
+    exit;
+}
+if (isset($_GET['highlight'])) {
+    $taskIndex = (int)$_GET['highlight'];
+    $priority = $_GET['priority'] ?? 'normal';
+    if (isset($data[$taskIndex])) {
+        $data[$taskIndex]['priority'] = $priority;
+        file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT));
+    }
+    header('Location: index.php');
+    exit;
+}
+
+// Count tasks
+
+$totalTasks = count($data);
+
+$completedTasks = count(array_filter($data, function ($task) {
+    return isset($task['status']) && $task['status'] === 'completed';
+}));
+
+$criticalTasks = count(array_filter($data, function ($task) {
+    return isset($task['priority']) && $task['priority'] === 'critical';
+}));
+
+$pendingTasks = count(array_filter($data, function ($task) {
+    return isset($task['status']) && $task['status'] === 'pending';
+}));
+
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Task Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <script>
+        function togglePriorityOptions(id) {
+            const options = document.getElementById('priority-options-' + id);
+            const priorityButton = document.getElementById('priority-button-' + id);
+            if (options.style.display === 'block') {
+                options.style.display = 'none';
+                priorityButton.style.display = 'inline-block';
+            } else {
+                options.style.display = 'block';
+                priorityButton.style.display = 'none';
+            }
+        }
+    </script>
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="index.php">View Tasks</a></li>
+            <li><a href="add.php">Add Task</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <h1>Task Dashboard</h1>
+        <div class="counters">
+            <div>Total Tasks: <?php echo $totalTasks; ?></div>
+            <div>Completed Tasks: <?php echo $completedTasks; ?></div>
+            <div>Critical Tasks: <?php echo $criticalTasks; ?></div>
+            <div>Pending Tasks: <?php echo $pendingTasks; ?></div>
+        </div>
+
+        <?php foreach ($data as $index => $task): ?>
+        <div class="block <?php echo $task['priority']; ?>">
+            <h3><?php echo htmlspecialchars($task['title']); ?></h3>
+            <p><?php echo htmlspecialchars($task['description']); ?></p>
+            <p>Category: <?php echo htmlspecialchars($task['category']); ?></p>
+            <p>Deadline: <?php echo htmlspecialchars($task['deadline'] ?: 'No deadline'); ?></p>
+            <p>Priority: <?php echo ucfirst($task['priority']); ?></p>
+            <a href="?complete=<?php echo $index; ?>" class="btn btn-primary">Mark as Complete</a>
+            <a id="priority-button-<?php echo $index; ?>" class="btn btn-primary" onclick="togglePriorityOptions(<?php echo $index; ?>)">Priority</a>
+            <div id="priority-options-<?php echo $index; ?>" class="priority-options">
+                <a href="?highlight=<?php echo $index; ?>&priority=critical" class="btn btn-critical">Highlight as Critical</a>
+                <a href="?highlight=<?php echo $index; ?>&priority=important" class="btn btn-important">Highlight as Important</a>
+                <a href="?highlight=<?php echo $index; ?>&priority=normal" class="btn btn-normal">Highlight as Normal</a>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+</body>
+</html>
+
+
+
+
+
+
+
+============== File show.php
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Task Dashboard</title>
+    <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="show.php">View Tasks</a></li>
+            <li><a href="add.php">Add Task</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <!-- Counters Table -->
+        <div class="counters-table">
+            <!-- Row 1 -->
+            <div class="row">
+                <div class="title-cell" rowspan="2">Task Dashboard</div>
+                <div class="cell">Important Tasks: <?php echo $importantTasks; ?></div>
+                <div class="cell">Normal Tasks: <?php echo $normalTasks; ?></div>
+            </div>
+            <!-- Row 2 -->
+            <div class="row">
+                <div class="cell">Critical Tasks: <?php echo $criticalTasks; ?></div>
+                <div class="cell">Total Tasks: <?php echo $totalTasks; ?></div>
+            </div>
+        </div>
+
+        <!-- Tasks Section -->
+        <h2>Tasks</h2>
+        <?php foreach ($data as $index => $task): ?>
+        <div class="block <?php echo $task['priority']; ?>">
+            <h3><?php echo htmlspecialchars($task['title']); ?></h3>
+            <p><?php echo htmlspecialchars($task['description']); ?></p>
+            <p>Priority: <?php echo ucfirst($task['priority']); ?></p>
+            <div class="block-buttons">
+                <a href="?complete=<?php echo $index; ?>" class="btn btn-primary">Mark as Complete</a>
+                <a id="priority-button-<?php echo $index; ?>" class="btn btn-primary">Priority</a>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+</body>
+</html>
+
+
+
+
+
+============== File style.css
+/* General Styles */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f8f9fa;
+}
+
+/* Navigation Bar */
+nav {
+    background-color: #007BFF;
+    padding: 20px 0;
+}
+nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+}
+nav ul li {
+    margin: 0 20px;
+}
+nav ul li a {
+    text-decoration: none;
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+    padding: 15px 25px;
+    border-radius: 8px;
+    transition: background-color 0.3s ease;
+}
+nav ul li a:hover {
+    background-color: #0056b3;
+}
+
+/* Container */
+.container {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 15px;
+}
+
+/* Counters Section */
+.counters-grid {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+/* Counters Table Structure */
+.counters-table {
+    display: grid;
+    grid-template-columns: 1fr 3fr; /* Column A (Titles) and Column B (Counters) */
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 20px;
+}
+.counters-table .title {
+    text-align: left;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 10px 15px;
+    background-color: #f1f1f1;
+    border-radius: 5px;
+}
+.counters-table .counter {
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 10px 15px;
+    background-color: #e9ecef;
+    border-radius: 5px;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+}
+.column-a {
+    flex: 1;
+    text-align: center;
+    background: #f1f1f1;
+    padding: 20px;
+    border-radius: 5px;
+    font-size: 20px;
+    font-weight: bold;
+}
+.column-b {
+    flex: 3;
+    display: flex;
+    justify-content: space-around;
+    gap: 15px;
+}
+.counter {
+    background: #f1f1f1;
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-size: 18px;
+    font-weight: bold;
+    text-align: center;
+}
+
+/* Task Block */
+.block {
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    margin: 15px 0;
+    padding: 20px;
+    background: #fff;
+}
+.block-buttons {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.priority-buttons {
+    display: none;
+    gap: 5px;
+}
+
+
+
+
+
+============== File styles.css
+/* General Styles */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    background-color: #f8f9fa;
+}
+
+/* Navigation Bar */
+nav {
+    background-color: #007BFF;
+    padding: 25px 0; /* Increased height */
+}
+nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+}
+nav ul li {
+    margin: 0 25px;
+}
+nav ul li a {
+    text-decoration: none;
+    color: white;
+    font-size: 26px;
+    font-weight: bold;
+    padding: 16px 30px;
+    border-radius: 8px;
+    transition: background-color 0.3s ease, font-size 0.2s;
+}
+nav ul li a:hover {
+    background-color: #0056b3;
+    font-size: 28px;
+}
+
+/* Container */
+.container {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 15px;
+}
+
+/* Page Title */
+h1 {
+    text-align: center;
+    font-size: 36px;
+    margin-bottom: 20px;
+}
+
+/* Counters Section */
+.counters {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    margin-bottom: 25px;
+}
+.counters div {
+    background: #f1f1f1;
+    padding: 10px 15px; /* Reduced padding */
+    margin: 5px;
+    border-radius: 5px;
+    font-size: 18px; /* Slightly reduced font size */
+    font-weight: bold;
+    text-align: center;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+    white-space: nowrap; /* Prevent wrapping */
+}
+
+/* Task Block */
+.block {
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    margin: 15px 0;
+    padding: 20px;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+    background: #fff;
+    overflow-wrap: break-word;
+    position: relative;
+}
+.block.critical {
+    background-color: #ffe6e6;
+}
+.block.important {
+    background-color: #fff5cc;
+}
+.block.complete {
+    background-color: #e6ffe6;
+    text-decoration: line-through;
+}
+.block h3 {
+    margin: 0 0 15px;
+    font-size: 24px;
+}
+.block p {
+    margin: 8px 0;
+    font-size: 20px;
+}
+
+/* Buttons */
+.btn {
+    display: inline-block;
+    padding: 10px 15px; /* Smaller button size */
+    font-size: 16px; /* Reduced font size */
+    color: white;
+    text-align: center;
+    text-decoration: none;
+    margin-right: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+.btn-primary {
+    background-color: #007BFF;
+}
+.btn-primary:hover {
+    background-color: #0056b3;
+}
+.btn-important {
+    background-color: #FFC107;
+}
+.btn-important:hover {
+    background-color: #e0a800;
+}
+.btn-critical {
+    background-color: #DC3545;
+}
+.btn-critical:hover {
+    background-color: #c82333;
+}
+.btn-normal {
+    background-color: #28A745;
+}
+.btn-normal:hover {
+    background-color: #218838;
+}
+
+/* Horizontal Priority Button Section */
+.priority-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 5px; /* Small spacing between buttons */
+    margin-top: 15px;
+}
+
+/* Form Styles */
+form {
+    background: #f9f9f9;
+    padding: 25px;
+    border-radius: 5px;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+}
+form label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    font-size: 20px;
+}
+form input, form select, form textarea, form button {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 18px;
+    font-size: 18px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box;
+}
+form textarea {
+    height: 180px;
+    resize: vertical;
+}
+form input::placeholder, form textarea::placeholder {
+    font-style: italic;
+    color: #aaa;
+}
+form button {
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    text-align: center;
+}
+form button:hover {
+    background-color: #0056b3;
+}
+
+
+
+
+
+
+
+
+============== File task.json
+[
+    {
+        "title": "Collaborate all Links",
+        "description": "Collaborate all of our links for our programs so that we can go to that specific program page by clicking from our main page otherwise we need to find which was the link for a program.",
+        "category": "IT",
+        "deadline": "",
+        "priority": "important",
+        "status": "completed"
+    },
+    {
+        "title": "Collaborate all Links",
+        "description": "Collaborate all of our links for our programs so that we can go to that specific program page by clicking from our main page otherwise we need to find which was the link for a program.",
+        "category": "IT",
+        "deadline": "",
+        "priority": "important",
+        "status": "pending"
+    },
+    {
+        "title": "test",
+        "description": "DescriptionDescriptionDescriptionDescriptionDescriptionDescriptionDescriptionDescriptionDescription",
+        "category": "IT",
+        "deadline": "",
+        "priority": "normal",
+        "status": "pending"
+    }
+]
